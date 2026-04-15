@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Office Growth Engine | Management Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-gold: #fbbf24;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: #f1f5f9;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: radial-gradient(circle at center, #1e293b, #020617);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 32px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        #main-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .nav-btn { position: relative; transition: all 0.3s ease; color: #94a3b8; }
+        .nav-btn.active { color: white; background: rgba(255,255,255,0.1); }
+        .nav-btn.active::after {
+            content: ''; position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
+            width: 20px; height: 3px; background: var(--accent-blue); border-radius: 10px;
+        }
+
+        .promote-btn { animation: pulse-glow 1.5s infinite; }
+        @keyframes pulse-glow {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .custom-checkbox {
+            appearance: none; -webkit-appearance: none; width: 1.25rem; height: 1.25rem; border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 6px; cursor: pointer; position: relative; flex-shrink: 0;
+            background: transparent;
+        }
+        .custom-checkbox:checked { background: var(--accent-blue); border-color: var(--accent-blue); }
+        .custom-checkbox:checked::after {
+            content: '✓'; position: absolute; color: white; font-size: 0.8rem; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        }
+
+        .mission-badge {
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+            padding: 4px 12px; border-radius: 99px; font-size: 0.7rem; font-weight: 800;
+            text-transform: uppercase; cursor: pointer; position: relative;
+        }
+        .mission-tooltip {
+            visibility: hidden; width: 180px; background-color: #1e293b; color: #fff;
+            text-align: center; border-radius: 8px; padding: 10px; position: absolute;
+            z-index: 100; bottom: 125%; left: 50%; transform: translateX(-50%);
+            opacity: 0; transition: opacity 0.3s; border: 1px solid var(--accent-blue);
+            pointer-events: none;
+        }
+        .mission-badge:active .mission-tooltip, .mission-badge:hover .mission-tooltip { visibility: visible; opacity: 1; }
+
+        .progress-bar-container { background: rgba(0, 0, 0, 0.3); border-radius: 10px; height: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.4s ease-out; }
+
+        .dropdown-content { max-height: 0; overflow: hidden; transition: all 0.3s ease; opacity: 0; }
+        .dropdown-content.open { max-height: 1000px; opacity: 1; padding: 10px 0; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .remove-btn {
+            position: absolute; top: 12px; right: 12px; opacity: 0.4; transition: opacity 0.2s;
+            background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 6px 10px; border-radius: 8px; font-size: 10px; font-weight: bold;
+        }
+        @media (min-width: 1024px) { .remove-btn { opacity: 0; } .glass-card:hover .remove-btn { opacity: 1; } }
+        
+        .training-section-label {
+            font-size: 0.65rem; font-weight: 900; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;
+            margin-bottom: 0.5rem; display: block;
+        }
+
+        .workon-box {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 8px 12px;
+            font-size: 11px;
+            width: 100%;
+            min-height: 60px;
+            color: #cbd5e1;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .workon-box:focus {
+            border-color: var(--accent-blue);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        input[type="number"], input[type="text"], input[type="password"] {
+            -webkit-appearance: none;
+            border-radius: 12px;
+        }
+
+        .save-indicator {
+            position: fixed; bottom: 1rem; right: 1rem; font-size: 0.7rem; color: #64748b;
+            background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;
+            display: flex; align-items: center; gap: 6px; z-index: 1000;
+        }
+        .save-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .day-btn {
+            width: 32px; height: 32px; border-radius: 8px; font-size: 12px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+        }
+        .day-btn.active { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+    </style>
+</head>
+<body class="pb-24">
+
+    <!-- Password Protection -->
+    <div id="login-overlay">
+        <div class="login-card" id="login-box">
+            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-2xl shadow-xl mx-auto mb-6">P</div>
+            <h1 class="text-2xl font-bold mb-2">Private Access</h1>
+            <p class="text-slate-400 text-sm mb-8">Please enter the office password to continue</p>
+            
+            <input type="password" id="pass-input" placeholder="Enter Password" 
+                   class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-center text-lg outline-none focus:ring-2 ring-blue-500 mb-4 transition">
+            
+            <button onclick="checkPassword()" 
+                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition shadow-lg">Unlock Portal</button>
+            
+            <p id="error-msg" class="text-red-400 text-xs mt-4 opacity-0 transition-opacity">Incorrect password. Please try again.</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <nav class="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-xl border-b border-white/10 px-4 md:px-6 py-4 mb-4">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl shadow-lg">P</div>
+                    <span class="font-bold tracking-tight text-xl">OFFICE PIPELINE</span>
+                </div>
+                
+                <div class="flex bg-white/5 rounded-2xl p-1 gap-1 w-full md:w-auto overflow-x-auto no-scrollbar">
+                    <button onclick="switchTab('training')" id="tab-training" class="nav-btn active flex-1 md:flex-none whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition">1. Training</button>
+                    <button onclick="switchTab('solo')" id="tab-solo" class="nav-btn flex-1 md:flex-none whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition">2. Solo</button>
+                    <button onclick="switchTab('leader')" id="tab-leader" class="nav-btn flex-1 md:flex-none whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition">3. Leader Board</button>
+                </div>
+
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <input id="hire-name" type="text" placeholder="New Hire Name..." class="bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 ring-blue-500 flex-grow md:w-40">
+                    <button onclick="addNewHire()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition">Add</button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto px-4 md:px-6">
+            <section id="view-training" class="view-section active">
+                <div id="training-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </section>
+
+            <section id="view-solo" class="view-section">
+                <div id="solo-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </section>
+
+            <section id="view-leader" class="view-section">
+                <div id="leader-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            </section>
+        </main>
+
+        <div class="save-indicator">
+            <div class="save-dot"></div>
+            Local Sync Active
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'office_pipeline_data_v2';
+        const OFFICE_PASS = 'chillchill';
+
+        // --- PASSWORD LOGIC ---
+        function checkPassword() {
+            const input = document.getElementById('pass-input').value;
+            const overlay = document.getElementById('login-overlay');
+            const main = document.getElementById('main-content');
+            const error = document.getElementById('error-msg');
+            const box = document.getElementById('login-box');
+
+            if (input === OFFICE_PASS) {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.visibility = 'hidden';
+                    main.style.display = 'block';
+                    setTimeout(() => main.style.opacity = '1', 50);
+                }, 500);
+            } else {
+                box.classList.add('shake');
+                error.style.opacity = '1';
+                document.getElementById('pass-input').value = '';
+                setTimeout(() => box.classList.remove('shake'), 400);
+            }
+        }
+
+        document.getElementById('pass-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkPassword();
+        });
+
+        // --- DATA & CONSTANTS ---
+        const PREZI_STEPS = ["Intro & Story", "3 by 3s", "Building Value", "Price Breakdown", "Closing Circle"];
+        const TABLET_TRAINING_CHECKLIST = ["Tablet Training Session Complete", "Overturning Negatives", "1Mission / Sales Assist / Cheat Sheets", "Bundles & Pricing", "Territory Management & Mapping", "TPC Chart & Day Breakdown", "Courier Acknowledgement"];
+        const SOLO_CHECKLIST = ["Verbal & Non-buying Signs", "Escalation Checklist", "How to do Fit and DOE", "Disposition", "Install Logs"];
+        const TEACHBACKS = ["LOA", "FUGI", "5 Steps", "8 Steps"];
+        const INTERVIEW_STEPS = ["Shadow interview", "Write own short story", "Mock Step 2 (3x)", "In-person Step 2", "Mock Step 3 (3x)", "In-person Step 3", "Mock Step 4 (3x)", "In-person Step 4", "Mock Step 5 (3x)", "In-person Step 5", "Mock Step 6 (3x)", "In-person Step 6"];
+        
+        const CHECKLISTS = {
+            'recruiting': ['First Round Interview', 'Second Round Interview', 'Orientation', 'In-Class Training', 'Pitch Evaluation', 'In-Field Training', 'Retraining', 'PM Breakdown', 'Break-Even Analysis'],
+            'management': ['One-on-One Meetings', 'Critical Conversations', 'Team Game Plan', 'Team Night', 'Leaders Meeting', 'Daily Roll Call', 'Lead Assignment', 'Impact Session', 'Closing Meeting', 'Announcements', 'Running Car Ride', 'Driver License Check'],
+            'metrics': ['John Stanton Report', 'Timestamp Report', 'Salesforce Dispo', 'Churn Report', 'Payroll', 'RC Sales Tracker', 'Self-Install Report', 'Conversion Rate', 'TV & Wireless', 'Team Audit'],
+            'meetings': ['Owners Call (T/Th)', 'Client Call (Tue)', 'Recruiting Call (Thur)', 'RC Org Call (Mon)']
+        };
+
+        const CATS = [
+            { key: 'recruiting', label: 'Recruiting', color: 'bg-indigo-500' },
+            { key: 'management', label: 'Management', color: 'bg-emerald-500' },
+            { key: 'metrics', label: 'Metrics', color: 'bg-orange-500' },
+            { key: 'meetings', label: 'Meetings', color: 'bg-blue-500' }
+        ];
+
+        let members = {
+            training: [],
+            solo: [],
+            leader: [
+                { id: 1, name: "Nikita Korobkin", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Nikita" },
+                { id: 2, name: "Brayan Novoa", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Brayan" },
+                { id: 3, name: "Ming Gong", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ming" },
+                { id: 4, name: "Rebecca Downey", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rebecca" },
+                { id: 5, name: "Amine", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Amine" },
+                { id: 6, name: "Unnu", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Unnu" }
+            ].map(m => ({
+                ...m, sales: { nhc: 0, wireless: 0, shm: 0 },
+                recruiting: {}, management: {}, metrics: {}, meetings: {},
+                interviewStep: 0, notes: ""
+            }))
+        };
+
+        // --- PERSISTENCE ---
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(members)); }
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) { try { members = JSON.parse(saved); } catch(e) { console.error(e); } }
+        }
+
+        // --- CELEBRATIONS ---
+        function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
+        function triggerFireworks() {
+            const duration = 2000, animationEnd = Date.now() + duration, defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const count = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount: count, origin: { x: Math.random() * 0.2 + 0.1, y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount: count, origin: { x: Math.random() * 0.2 + 0.7, y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+        // --- NAVIGATION ---
+        function switchTab(t) {
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`view-${t}`).classList.add('active');
+            document.getElementById(`tab-${t}`).classList.add('active');
+            window.scrollTo(0,0);
+        }
+
+        function addNewHire() {
+            const name = document.getElementById('hire-name').value;
+            if (!name) return;
+            members.training.push({ id: Date.now(), name, prezi: [], tablet: [], fieldDays: 1, notes: "" });
+            saveData(); renderAll();
+            document.getElementById('hire-name').value = '';
+            triggerConfetti();
+        }
+
+        function removeMember(type, id) {
+            if(!confirm(`Are you sure you want to remove ${members[type].find(m => m.id === id).name}?`)) return;
+            members[type] = members[type].filter(m => m.id !== id);
+            saveData(); renderAll();
+        }
+
+        function updateNotes(type, id, text) {
+            const m = members[type].find(x => x.id === id);
+            if (m) {
+                m.notes = text;
+                saveData();
+            }
+        }
+
+        function updateFieldDays(id, days) {
+            const m = members.training.find(x => x.id === id);
+            if (m) {
+                m.fieldDays = parseInt(days);
+                saveData();
+                renderTraining();
+            }
+        }
+
+        // --- RENDERING ---
+        function renderTraining() {
+            document.getElementById('training-grid').innerHTML = members.training.map(m => {
+                const mPrezi = m.prezi || [], mTablet = m.tablet || [];
+                const totalReq = PREZI_STEPS.length + TABLET_TRAINING_CHECKLIST.length;
+                const cur = mPrezi.length + mTablet.length;
+                const ready = cur === totalReq;
+                const fieldDays = m.fieldDays || 1;
+                const statusColor = fieldDays > 4 ? 'text-red-400' : (fieldDays >= 3 ? 'text-yellow-400' : 'text-emerald-400');
+
+                return `
+                <div class="glass-card p-6">
+                    <button onclick="removeMember('training', ${m.id})" class="remove-btn">Remove</button>
+                    <div class="flex justify-between items-start mb-4 pr-16">
+                        <h3 class="text-xl font-bold">${m.name}</h3>
+                        <div class="text-right">
+                            <span class="training-section-label !mb-0">In-Field Day</span>
+                            <div class="flex items-center gap-1 mt-1">
+                                <button onclick="updateFieldDays(${m.id}, ${Math.max(1, fieldDays - 1)})" class="day-btn">-</button>
+                                <span class="w-8 text-center font-black text-lg ${statusColor}">${fieldDays}</span>
+                                <button onclick="updateFieldDays(${m.id}, ${fieldDays + 1})" class="day-btn">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <span class="training-section-label">Work-Ons</span>
+                        <textarea class="workon-box" placeholder="What does ${m.name} need to focus on?" oninput="updateNotes('training', ${m.id}, this.value)">${m.notes || ''}</textarea>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <span class="training-section-label">5 Steps of the Pitch</span>
+                            <div class="grid grid-cols-1 gap-2">
+                                ${PREZI_STEPS.map((step, idx) => `
+                                    <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition">
+                                        <input type="checkbox" class="custom-checkbox" ${mPrezi.includes(idx) ? 'checked' : ''} onchange="togglePrezi(${m.id}, ${idx})">
+                                        <span class="text-[11px] text-slate-300 font-medium">${step}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <span class="training-section-label">Compliance & Systems</span>
+                            <div class="grid grid-cols-1 gap-2">
+                                ${TABLET_TRAINING_CHECKLIST.map((item, idx) => `
+                                    <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition">
+                                        <input type="checkbox" class="custom-checkbox" ${mTablet.includes(idx) ? 'checked' : ''} onchange="toggleTablet(${m.id}, ${idx})">
+                                        <span class="text-[11px] text-slate-300 font-medium">${item}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    ${ready ? `<button onclick="promoteToSolo(${m.id})" class="promote-btn w-full mt-6 py-4 bg-green-600 text-white font-black rounded-xl text-sm shadow-lg">GRADUATE TO SOLO</button>` : `
+                        <div class="mt-6 pt-4 border-t border-white/5">
+                            <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-2 uppercase"><span>Training Progress</span><span>${cur}/${totalReq}</span></div>
+                            <div class="progress-bar-container"><div class="progress-bar bg-blue-500" style="width: ${(cur/totalReq)*100}%"></div></div>
+                        </div>
+                    `}
+                </div>`
+            }).join('');
+        }
+
+        function togglePrezi(id, idx) {
+            const m = members.training.find(x => x.id === id);
+            m.prezi = m.prezi.includes(idx) ? m.prezi.filter(i => i !== idx) : [...m.prezi, idx];
+            if (m.prezi.includes(idx)) triggerConfetti();
+            saveData(); renderTraining();
+        }
+
+        function toggleTablet(id, idx) {
+            const m = members.training.find(x => x.id === id);
+            m.tablet = m.tablet.includes(idx) ? m.tablet.filter(i => i !== idx) : [...m.tablet, idx];
+            if (m.tablet.includes(idx)) triggerConfetti();
+            saveData(); renderTraining();
+        }
+
+        function promoteToSolo(id) {
+            const m = members.training.find(x => x.id === id);
+            members.training = members.training.filter(x => x.id !== id);
+            members.solo.push({ ...m, salesCount: 0, tbs: [], fieldCheck: [] });
+            saveData(); triggerFireworks(); renderAll(); switchTab('solo');
+        }
+
+        function renderSolo() {
+            document.getElementById('solo-grid').innerHTML = members.solo.map(m => {
+                const total = TEACHBACKS.length + SOLO_CHECKLIST.length, cur = m.tbs.length + m.fieldCheck.length;
+                return `
+                <div class="glass-card p-6 border-l-4 border-blue-500">
+                    <button onclick="removeMember('solo', ${m.id})" class="remove-btn">Remove</button>
+                    <h3 class="text-xl font-bold mb-4">${m.name}</h3>
+                    
+                    <div class="mb-6">
+                        <span class="training-section-label">Work-Ons</span>
+                        <textarea class="workon-box" placeholder="What does ${m.name} need to focus on?" oninput="updateNotes('solo', ${m.id}, this.value)">${m.notes || ''}</textarea>
+                    </div>
+
+                    <div class="mb-6">
+                        <div class="flex justify-between items-end mb-2"><span class="text-[10px] font-black text-slate-500 uppercase">Production</span><span class="text-lg font-black text-blue-400">${m.salesCount}/6</span></div>
+                        <div class="progress-bar-container"><div class="progress-bar bg-blue-500" style="width: ${(m.salesCount/6)*100}%"></div></div>
+                        <input type="range" min="0" max="6" value="${m.salesCount}" class="w-full mt-4 h-6 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500" oninput="updateSoloSales(${m.id}, this.value)">
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <span class="training-section-label">Field Checklist</span>
+                            <div class="grid grid-cols-1 gap-2">
+                                ${SOLO_CHECKLIST.map((item, idx) => `<label class="flex items-center gap-2 p-3 bg-white/5 rounded-lg cursor-pointer"><input type="checkbox" class="custom-checkbox" ${m.fieldCheck.includes(idx) ? 'checked' : ''} onchange="toggleSoloCheck(${m.id}, ${idx})"><span class="text-[11px] text-slate-300 font-medium">${item}</span></label>`).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <span class="training-section-label">Teachbacks</span>
+                            <div class="grid grid-cols-1 gap-2">
+                                ${TEACHBACKS.map((tb, idx) => `<label class="flex items-center gap-2 p-3 bg-white/5 rounded-lg cursor-pointer"><input type="checkbox" class="custom-checkbox" ${m.tbs.includes(idx) ? 'checked' : ''} onchange="toggleSoloTB(${m.id}, ${idx})"><span class="text-[11px] text-slate-300 font-medium">${tb}</span></label>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    ${m.salesCount >= 6 && cur === total ? `<button onclick="promoteToLeader(${m.id})" class="promote-btn w-full mt-6 py-4 bg-yellow-500 text-black font-black rounded-xl text-sm">PROMOTE TO LEADER 🏆</button>` : `<div class="mt-6 pt-4 border-t border-white/5 text-[10px] text-slate-500 uppercase font-bold text-center">${cur}/${total} Required Tasks</div>`}
+                </div>`
+            }).join('');
+        }
+
+        function updateSoloSales(id, v) { const m = members.solo.find(x => x.id === id); m.salesCount = parseInt(v); if(m.salesCount === 6) triggerConfetti(); saveData(); renderSolo(); }
+        function toggleSoloTB(id, idx) { const m = members.solo.find(x => x.id === id); m.tbs = m.tbs.includes(idx) ? m.tbs.filter(i => i !== idx) : [...m.tbs, idx]; if (m.tbs.includes(idx)) triggerConfetti(); saveData(); renderSolo(); }
+        function toggleSoloCheck(id, idx) { const m = members.solo.find(x => x.id === id); m.fieldCheck = m.fieldCheck.includes(idx) ? m.fieldCheck.filter(i => i !== idx) : [...m.fieldCheck, idx]; if (m.fieldCheck.includes(idx)) triggerConfetti(); saveData(); renderSolo(); }
+
+        function promoteToLeader(id) {
+            const m = members.solo.find(x => x.id === id);
+            members.solo = members.solo.filter(x => x.id !== id);
+            members.leader.push({ ...m, img: `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.name}`, sales: { nhc: 0, wireless: 0, shm: 0 }, recruiting: {}, management: {}, metrics: {}, meetings: {}, interviewStep: 0 });
+            saveData(); triggerFireworks(); renderAll(); switchTab('leader');
+        }
+
+        function renderLeader() {
+            const opened = Array.from(document.querySelectorAll('.dropdown-content.open')).map(el => el.id);
+            document.getElementById('leader-grid').innerHTML = members.leader.map(m => {
+                const curMission = INTERVIEW_STEPS[m.interviewStep] || "Complete!";
+                return `
+                <div class="glass-card p-6 flex flex-col items-center">
+                    <button onclick="removeMember('leader', ${m.id})" class="remove-btn">Remove</button>
+                    <img src="${m.img}" class="w-20 h-20 rounded-full ring-4 ring-white/5 mb-2">
+                    <h3 class="text-md font-bold mb-2">${m.name}</h3>
+                    ${!m.recruiting['Second Round Interview'] ? `<div class="mb-4"><div class="mission-badge" onclick="advanceInterview(${m.id})">Mission<div class="mission-tooltip"><p class="text-blue-400 font-bold mb-1">Next Step:</p><p class="text-sm">${curMission}</p></div></div></div>` : '<div class="h-4"></div>'}
+                    
+                    <div class="w-full mb-4">
+                        <span class="training-section-label">Work-Ons</span>
+                        <textarea class="workon-box" placeholder="Critical focus areas..." oninput="updateNotes('leader', ${m.id}, this.value)">${m.notes || ''}</textarea>
+                    </div>
+
+                    <div class="w-full space-y-4">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[9px] font-black text-slate-500 uppercase"><span>Cycle Progress</span><span>${m.sales.nhc + m.sales.wireless + m.sales.shm}/6</span></div>
+                            <div class="progress-bar-container"><div class="progress-bar bg-blue-500" style="width: ${Math.min(((m.sales.nhc + m.sales.wireless + m.sales.shm)/6)*100, 100)}%"></div></div>
+                            <div class="grid grid-cols-3 gap-1 pt-2">
+                                <input type="number" class="bg-black/40 border border-white/10 rounded text-center text-[11px] py-2 text-white" value="${m.sales.nhc}" oninput="updateLeaderSales(${m.id}, 'nhc', this.value)">
+                                <input type="number" class="bg-black/40 border border-white/10 rounded text-center text-[11px] py-2 text-white" value="${m.sales.wireless}" oninput="updateLeaderSales(${m.id}, 'wireless', this.value)">
+                                <input type="number" class="bg-black/40 border border-white/10 rounded text-center text-[11px] py-2 text-white" value="${m.sales.shm}" oninput="updateLeaderSales(${m.id}, 'shm', this.value)">
+                            </div>
+                        </div>
+                        ${CATS.map(cat => {
+                            const dropId = `drop-${m.id}-${cat.key}`, isOpen = opened.includes(dropId), count = Object.values(m[cat.key] || {}).filter(v => v).length;
+                            return `
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[9px] font-black text-slate-500 uppercase"><span>${cat.label}</span><span>${count}/${CHECKLISTS[cat.key].length}</span></div>
+                                <div class="progress-bar-container"><div class="progress-bar ${cat.color}" style="width: ${(count / CHECKLISTS[cat.key].length)*100}%"></div></div>
+                                <button onclick="toggleDrop('${dropId}')" class="w-full py-2 bg-white/5 rounded-lg text-[9px] text-slate-400 text-left px-2 flex justify-between">Checklist <span>▼</span></button>
+                                <div id="${dropId}" class="dropdown-content ${isOpen ? 'open' : ''}">
+                                    ${CHECKLISTS[cat.key].map(item => `<label class="flex items-center gap-2 px-4 py-2 hover:bg-white/5 cursor-pointer text-[10px] text-slate-400"><input type="checkbox" class="custom-checkbox" ${m[cat.key][item] ? 'checked' : ''} onchange="updateLeaderCheck(${m.id}, '${cat.key}', '${item}', this.checked)"><span>${item}</span></label>`).join('')}
+                                </div>
+                            </div>`}).join('')}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function advanceInterview(id) {
+            const m = members.leader.find(x => x.id === id);
+            m.interviewStep++; triggerConfetti();
+            if (m.interviewStep >= INTERVIEW_STEPS.length) { m.recruiting['Second Round Interview'] = true; triggerFireworks(); }
+            saveData(); renderLeader();
+        }
+
+        function updateLeaderSales(id, t, v) { const m = members.leader.find(x => x.id === id); m.sales[t] = parseInt(v) || 0; saveData(); renderLeader(); }
+        function updateLeaderCheck(id, c, i, v) { const m = members.leader.find(x => x.id === id); m[c][i] = v; if (v) triggerConfetti(); if (c === 'recruiting' && i === 'Second Round Interview' && !v) m.interviewStep = 0; saveData(); renderLeader(); }
+        function toggleDrop(id) { document.getElementById(id).classList.toggle('open'); }
+        function renderAll() { renderTraining(); renderSolo(); renderLeader(); }
+        
+        loadData();
+        renderAll();
+    </script>
+</body>
+</html>
